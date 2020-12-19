@@ -1,4 +1,5 @@
 (function(window, factory) {
+	if(!window) {return;}
 	var globalInstall = function(){
 		factory(window.lazySizes);
 		window.removeEventListener('lazyunveilread', globalInstall, true);
@@ -8,16 +9,41 @@
 
 	if(typeof module == 'object' && module.exports){
 		factory(require('lazysizes'));
+	} else if (typeof define == 'function' && define.amd) {
+		define(['lazysizes'], factory);
 	} else if(window.lazySizes) {
 		globalInstall();
 	} else {
 		window.addEventListener('lazyunveilread', globalInstall, true);
 	}
-}(window, function(window, document, lazySizes) {
+}(typeof window != 'undefined' ?
+	window : 0, function(window, document, lazySizes) {
 	'use strict';
 
+	var lazySizesCfg;
+
+	(function(){
+		var prop;
+
+		var blurUpDefaults = {
+			blurUpClass: 'ls-blur-up-img',
+			blurUpLoadingClass: 'ls-blur-up-is-loading',
+			blurUpInviewClass: 'ls-inview',
+			blurUpLoadedClass: 'ls-blur-up-loaded',
+			blurUpLoadedOriginalClass: 'ls-original-loaded'
+		};
+
+		lazySizesCfg = lazySizes.cfg || {};
+
+		for(prop in blurUpDefaults){
+			if(!(prop in lazySizesCfg)){
+				lazySizesCfg[prop] = blurUpDefaults[prop];
+			}
+		}
+	})();
+
 	var slice = [].slice;
-	var regBlurUp = /blur-up["']*\s*:\s*["']*(always|auto|unobtrusive)/;
+	var regBlurUp = /blur-up["']*\s*:\s*["']*(always|auto)/;
 	var regType = /image\/(jpeg|png|gif|svg\+xml)/;
 	var transSrc = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
@@ -29,12 +55,19 @@
 	};
 
 	var getLowSrc = function (picture, img) {
+		var matchingLowSrc;
 		var sources = picture ? slice.call(picture.querySelectorAll('source, img')) : [img];
-		var element = sources.find(function (src) {
-			return src.getAttribute('data-lowsrc') && matchesMedia(src);
+
+		sources.forEach(function (src) {
+			if (matchingLowSrc) {return;}
+			var lowSrc = src.getAttribute('data-lowsrc');
+
+			if (lowSrc && matchesMedia(src)) {
+				matchingLowSrc = lowSrc;
+			}
 		});
 
-		return element && element.getAttribute('data-lowsrc');
+		return matchingLowSrc;
 	};
 
 	var createBlurup = function(picture, img, src, blurUp){
@@ -49,16 +82,21 @@
 
 			if(!src){return;}
 
-			var onloadBlurUp = function(){
+			var onloadBlurUp = function(e){
 				isBlurUpLoaded = true;
 
-				if(blurImg){
-					lazySizes.rAF(function () {
-						if(blurImg) {
-							lazySizes.aC(blurImg, 'ls-blur-up-loaded');
-						}
-					});
+				if (!blurImg) {
+					blurImg = e.target;
+				}
 
+				lazySizes.rAF(function () {
+					lazySizes.rC(img, lazySizes.cfg.blurUpLoadingClass);
+					if(blurImg) {
+						lazySizes.aC(blurImg, lazySizes.cfg.blurUpLoadedClass);
+					}
+				});
+
+				if(blurImg){
 					blurImg.removeEventListener('load', onloadBlurUp);
 					blurImg.removeEventListener('error', onloadBlurUp);
 				}
@@ -69,31 +107,37 @@
 			blurImg.addEventListener('load', onloadBlurUp);
 			blurImg.addEventListener('error', onloadBlurUp);
 
-			blurImg.className = 'ls-blur-up-img';
+			blurImg.className = lazySizes.cfg.blurUpClass;
+			blurImg.cssText = img.cssText;
 			blurImg.src = src;
 			blurImg.alt = '';
 			blurImg.setAttribute('aria-hidden', 'true');
-
-			blurImg.className += ' ls-inview';
 
 			parent.insertBefore(blurImg, (picture || img).nextSibling);
 
 			if(blurUp != 'always'){
 				blurImg.style.visibility = 'hidden';
 
-				setTimeout(function(){
-					lazySizes.rAF(function () {
-						if(!isForced){
-							blurImg.style.visibility = '';
-						}
-					});
-				}, 20);
+				lazySizes.rAF(function () {
+					if (blurImg) {
+						setTimeout(function(){
+							if (blurImg) {
+								lazySizes.rAF(function () {
+									if(!isForced && blurImg){
+										blurImg.style.visibility = '';
+									}
+								});
+							}
+						}, lazySizes.cfg.blurupCacheDelay || 33);
+					}
+				});
 			}
 		};
 
 		var remove = function () {
 			if(blurImg){
 				lazySizes.rAF(function() {
+					lazySizes.rC(img, lazySizes.cfg.blurUpLoadingClass);
 					try {
 						blurImg.parentNode.removeChild(blurImg);
 					} catch(er){}
@@ -120,11 +164,15 @@
 
 			if(blurImg){
 				lazySizes.rAF(function(){
-					lazySizes.aC(blurImg, 'ls-original-loaded');
+					if(blurImg) {
+						lazySizes.aC(blurImg, lazySizes.cfg.blurUpLoadedOriginalClass);
+					}
 				});
 			}
 
-			if(!isBlurUpLoaded || Date.now() - start < 66){
+			lazySizes.fire(img, 'blurUpLoaded');
+
+			if(blurUp != 'always' && (!isBlurUpLoaded || Date.now() - start < 66)){
 				setStateUp(true);
 			} else {
 				setStateUp();
@@ -136,30 +184,27 @@
 		img.addEventListener('load', onload);
 		img.addEventListener('error', onload);
 
+		lazySizes.aC(img, lazySizes.cfg.blurUpLoadingClass);
 
-		if(blurUp == 'unobtrusive'){
-			setStateUp();
-		} else {
-			var parentUnveil = function (e) {
-				if(parent != e.target){
-					return;
-				}
-
-				lazySizes.aC(blurImg || img, 'ls-inview');
-
-				setStateUp();
-
-				parent.removeEventListener('lazybeforeunveil', parentUnveil);
-			};
-
-			if(!parent.getAttribute('data-expand')){
-				parent.setAttribute('data-expand', -1);
+		var parentUnveil = function (e) {
+			if(parent != e.target){
+				return;
 			}
 
-			parent.addEventListener('lazybeforeunveil', parentUnveil);
+			lazySizes.aC(blurImg || img, lazySizes.cfg.blurUpInviewClass);
 
-			lazySizes.aC(parent, lazySizes.cfg.lazyClass);
+			setStateUp();
+
+			parent.removeEventListener('lazybeforeunveil', parentUnveil);
+		};
+
+		if(!parent.getAttribute('data-expand')){
+			parent.setAttribute('data-expand', -1);
 		}
+
+		parent.addEventListener('lazybeforeunveil', parentUnveil);
+
+		lazySizes.aC(parent, lazySizes.cfg.lazyClass);
 
 	};
 
@@ -188,6 +233,6 @@
 
 		if(!match && !img.getAttribute('data-lowsrc')){return;}
 
-		detail.blurUp = match && match[1] || 'always';
+		detail.blurUp = match && match[1] || lazySizes.cfg.blurupMode || 'always';
 	});
 }));

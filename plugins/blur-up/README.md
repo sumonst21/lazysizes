@@ -1,16 +1,22 @@
-# The lazysizes Blur Up/effect plugin plugin
+# The lazysizes Blur Up/effect plugin
 
 The lazysizes Blur Up plugin ([demo](https://jsfiddle.net/trixta/v0oq0412/embedded/result/)) gives you the possibility to also lazyload the low quality placeholder and enables you to create a blur up/fade over effect.
 
 This way the low quality image placeholder technique is more appealing to the user.
 
+```js
+// never try to import *.min.js files
+import lazySizes from 'lazysizes';
+import 'lazysizes/plugins/blur-up/ls.blur-up';
+```
+
 ## How to
 
-Simply add a `data-lowsrc` attribute with the loq quality image placeholder image to your `img` and in case of `picture` to your `source` elements.
+Simply add a `data-lowsrc` attribute with the low quality image placeholder image to your `img` and in case of `picture` to your `source` elements.
 
 Lazysizes will then create a new image right after your original image with the following class `ls-blur-up-img`.
 
-The new image (`ls-blur-up-img`) will get the following state classes to enable you to write a custom CSS animation/transition as soon as the image is in view and loaded: `ls-inview`/`ls-original-loaded`.
+The new image (`.ls-blur-up-img`) will get the following state classes to enable you to write a custom CSS animation/transition as soon as the image is in view and loaded: `ls-inview`/`ls-original-loaded`, while your original `img` gets the class `.ls-blur-up-is-loading` until the `.ls-blur-up-img` is loaded.
 
 
 ```html
@@ -29,6 +35,11 @@ The new image (`ls-blur-up-img`) will get the following state classes to enable 
 		padding-bottom: 66.6667%;
 	}
 
+	.mediabox-img.ls-blur-up-is-loading,
+	.mediabox-img.lazyload:not([src]) {
+		visibility: hidden;
+	}
+
 	.ls-blur-up-img,
 	.mediabox-img {
 		position: absolute;
@@ -38,8 +49,8 @@ The new image (`ls-blur-up-img`) will get the following state classes to enable 
 		height: 100%;
 		display: block;
 
-		/* only if you want to change the blur-up option from auto to always */
-		font-family: "blur-up: always", "object-fit: cover";
+		/* only if you want to change the blur-up option from always to auto or want to use blur up effect without a lowsrc image. */
+		font-family: "blur-up: auto", "object-fit: cover";
 
 		object-fit: cover;
 	}
@@ -72,3 +83,41 @@ The new image (`ls-blur-up-img`) will get the following state classes to enable 
 <script src="../plugins/blur-up/ls.blur-up.js"></script>
 <script src="../lazysizes.js"></script>
 ```
+
+
+### Blur-up options
+
+#### BlurUp Mode
+
+The effect mode has two possible value: `"always"` (default: The effect is generated always) and `"auto"` (The effect is only used with non cached images).
+
+The blur up mode can be configured using JS or CSS:
+
+```js
+import lazysizes from 'lazysizes';
+import 'lazysizes/plugins/blur-up/ls.blur-up';
+
+lazysizes.cfg.blurupMode = 'auto';
+```
+
+```css
+.mediabox-img {
+	font-family: "blur-up: auto", "object-fit: cover";
+}
+```
+
+#### You can override blur-up classes
+
+```js
+import lazysizes from 'lazysizes';
+import 'lazysizes/plugins/blur-up/ls.blur-up';
+
+
+lazySizes.cfg.blurUpClass = 'blurred-image'
+```
+Here the list of override classes:
+
+* ``lazySizes.cfg.blurUpLoadingClass`` ls-blur-up-is-loading
+* ``lazySizes.cfg.blurUpInviewClass`` ls-inview
+* ``lazySizes.cfg.blurUpLoadedClass`` ls-blur-up-loaded
+* ``lazySizes.cfg.blurUpLoadedOriginalClass`` ls-original-loaded

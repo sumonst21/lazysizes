@@ -11,7 +11,17 @@ It may become also your number one tool to integrate responsive images. It can a
     ```html
     <script src="lazysizes.min.js" async=""></script>
     ```
-    Note: For more information see [here](#include-early).
+
+    Or:
+	```js
+	import 'lazysizes';
+	// import a plugin
+	import 'lazysizes/plugins/parent-fit/ls.parent-fit';
+
+	// Note: Never import/require the *.min.js files from the npm package.
+	```
+
+	Note: For more information see [here](#include-early).
 
 2. lazysizes does not need any JS configuration: Add the ``class`` ``"lazyload"`` to your images/iframes in conjunction with a ``data-src`` and/or ``data-srcset`` attribute. Optionally you can also add a ``src`` attribute with a low quality image:
 
@@ -70,7 +80,7 @@ Add the ``class`` ``lazyload`` to all ``img`` and ``iframe`` elements, which sho
 <!-- retina optimized image: -->
 <img data-srcset="responsive-image1.jpg 1x, responsive-image2.jpg 2x" class="lazyload" />
 ```
-
+#### <a name="data-sizes-auto"></a>Automatically setting the `sizes` attribute
 **lazysizes** supports setting the ``sizes`` attribute automatically, corresponding to the current size of your image - just set the value of ``data-sizes`` to  ``auto``.
 
 ```html
@@ -82,7 +92,7 @@ Add the ``class`` ``lazyload`` to all ``img`` and ``iframe`` elements, which sho
     class="lazyload" />
 ```
 
-**<a name="sizes-calculation"></a>Important: How ``sizes`` is calculated**: The automatic sizes calculation uses the display width of the image. This means that the width of the image has to be calculable at least approximately before the image itself is loaded. Often the following general CSS rule might help: ``img[data-sizes="auto"] { display: block; width: 100%; }`` (see also [specifying image/iframe dimensions with the recommended aspect ratio definition](#specify-dimensions)). If it is below ``40`` (can be configured through the ``minSize`` option), lazysizes traverses up the DOM tree until it finds a parent which is over ``40`` and uses this number.
+**<a name="sizes-calculation"></a>Important: How ``sizes`` is calculated**: The automatic sizes calculation uses the display width of the image. This means that the width of the image has to be calculable at least approximately before the image itself is loaded (This means you can not use `width: auto`). Often the following general CSS rule might help: ``img[data-sizes="auto"] { display: block; width: 100%; }`` (see also [specifying image/iframe dimensions with the recommended aspect ratio definition](#specify-dimensions)). If it is below ``40`` (can be configured through the ``minSize`` option), lazysizes traverses up the DOM tree until it finds a parent which is over ``40`` and uses this number.
 
 The width auto-calculated by lazysizes can be modified using the ``lazybeforesizes`` event ([lazybeforesizes documentation](#lazybeforesizes-documentation)). Alternatively, the [parent fit plugin](plugins/parent-fit) can be used for sizing images to fit a parent / container, and is the only solution when an image's height needs to be taken into account when fitting it to its container (This also includes the use of `object-fit`).
 
@@ -286,11 +296,26 @@ lazysizes adds the class ``lazyloading`` while the images are loading and the cl
 }
 ```
 
+### Broken image symbol
+
+In case you are using an `alt` attribute but do not declare a `src`/`srcset` attribute you will end up with a broken image symbol.
+
+There are two easy ways to deal with it.
+
+Either define a `src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="` or add the following CSS.
+
+```css
+img.lazyload:not([src]) {
+	visibility: hidden;
+}
+```
+
 
 ### JS API
 **lazysizes** automatically detects new elements with the class ``lazyload`` so you won't need to call or configure anything in most situations.
 
 #### JS API - options
+
 Options can be set by declaring a global configuration option object named ``lazySizesConfig``. This object must be defined before the lazysizes script. A basic example:
 
 ```js
@@ -304,6 +329,15 @@ lazySizesConfig.srcAttr = 'data-original';
 
 //page is optimized for fast onload event
 lazySizesConfig.loadMode = 1;
+```
+
+In case you are using a module bundler it is recommended to change the options directly after importing the `lazysizes` module:
+
+```js
+import lazySizes from 'lazysizes';
+// other imports ...
+
+lazySizes.cfg.lazyClass = 'lazy';
 ```
 
 Here the list of options:
@@ -415,7 +449,7 @@ document.addEventListener('lazybeforeunveil', function(e){
 ```js
 $(document).on('lazybeforesizes', function(e){
     //use width of parent node instead of the image width itself
-    e.detail.width = $(e.target).closest(':not(picture)').innerWidth() || e.detail.width;
+    e.detail.width = $(e.target).parents(':not(picture)').innerWidth() || e.detail.width;
 });
 ```
 
@@ -464,6 +498,10 @@ lazySizes.init();
 
 ## Contributing
 Fixes, PRs and issues are always welcome, make sure to create a new branch from the **master** (not the gh-pages branch), validate against JSHint and test in all browsers. In case of an API/documentation change make sure to also document it here in the readme.md.
+### Build
+Run `npx grunt` to validate JSHint and uglify/minify all files.
+### Tests
+Run `npx serverino -p 3333` and navigate to [http://localhost:3333/tests/](http://localhost:3333/tests/)
 
 ## <a name="plugins"></a>Available plugins in this repo
 It is recommended to concat all plugins together with lazySizes. In case you don't concat it is recommended to include the plugin scripts *before* the lazySizes main script.
@@ -489,18 +527,21 @@ In case you are changing the ``data-src``/``data-srcset`` attributes of already 
 
 This [attrchange / re-initialization extension](plugins/attrchange) automatically detects changes to your ``data-*`` attributes and adds the class for you.
 
+### [artdirect plugin](plugins/artdirect)
+The [artdirect plugin](plugins/artdirect) allows you to fully control art direction via CSS.
+
+
 ### Other [plugins/extensions](plugins)
 
 There are also other plugins/extension in the [plugins folder](plugins). As always you are open to create new ones for your project.
 
 ## <a name="specify-dimensions"></a>Tip: Specifying image dimensions (minimizing reflows and avoiding page jumps)
-To minimize reflows, content jumping or unpredictable behavior with some other JS widgets (isotope, masonry, some sliders/carousels...) the width **and** the height of an image should be calculable by the browser before the image source itself is loaded. For "static" images this can be done using either CSS or using the content attributes:
+To minimize reflows, content jumping or unpredictable behavior with some other JS widgets (isotope, masonry, some sliders/carousels...) the width **and** the height of an image should be calculable by the browser before the image source itself is loaded:
 
 ```html
 <img
 
-    width="350"
-    height="150"
+    style="width: 350px; height: 150px;"
 	data-srcset="http://placehold.it/350x150 1x,
     http://placehold.it/700x300 2x"
     data-src="http://placehold.it/350x150"
@@ -635,7 +676,6 @@ or at least add a ``min-height`` (and ``min-width``) to minimize content jumps:
 **Note**:
 
 * If you use the "unknown intrinsic ratio pattern" and the width of the loaded image will not (approximately) match the width of its container, the ``data-sizes="auto"`` feature will not be effective when used on its own. In this situation, the most appropriate size for the image to fit in the available space can be calculated automatically using the [parent fit plugin](plugins/parent-fit).
-* see also the [aspectratio extension](plugins/aspectratio) for an alternative way to add aspectratio.
 
 ### Updating layout of JS widgets
 In case you can't specify the image dimensions using CSS or one of the above suggested methods and your JS widgets have problems to calculate the right dimensions. You can use the following pattern to update your JS widgets (sliders/masonry):
@@ -662,7 +702,7 @@ While lazy loading is a great feature, it is important for users that crucial in
 
 In case you normally combine all your scripts into one large script and add this to the bottom of your page, it can be better for perceived performance to generate two or sometimes more script packages: One small package, which includes all scripts which have heavy influence on the content or the UI and another larger one which includes the normal behavior of the page.
 
-This smaller script, which should include lazySizes (and all its plugins), should than be placed **before** any other blocking elements (i.e.: script(s)) at the end of the body or after any blocking elements (i.e.: scripts, stylesheets) in the head to load the crucial content as fast possible. (Note: It might make also sense to call `lazySizes.init();` explicitly right after lazySizes and all its plugins are added.)
+This smaller script, which should include lazySizes (and all its plugins), should then be placed **before** any other blocking elements (i.e.: script(s)) at the end of the body or after any blocking elements (i.e.: scripts, stylesheets) in the head to load the crucial content as fast possible. (Note: It might make also sense to call `lazySizes.init();` explicitly right after lazySizes and all its plugins are added.)
 
 ## Why lazysizes
 In the past, I often struggled using lazy image loaders, because the "main check function" is called repeatedly and with a high frequency. Which makes it hard to fulfill two purposes runtime and memory efficiency. And looking into the source code of most so called lazy loaders often also unveils lazy developers...
